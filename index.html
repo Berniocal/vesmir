@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sluneční zenit a úhel dopadu</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --text: #172033;
+    --muted: #5d6b82;
+    --accent: #f6b73c;
+    --accent2: #2f80ed;
+    --border: #dbe3ef;
+    --good: #1f9d55;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: linear-gradient(135deg, #eef5ff, #fff8ea);
+    color: var(--text);
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 22px;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+  }
+  .lead {
+    margin: 0 0 20px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: rgba(255,255,255,0.92);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(20, 40, 80, 0.08);
+  }
+  label {
+    display: block;
+    margin: 12px 0 6px;
+    font-weight: 700;
+  }
+  input {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 1rem;
+    background: white;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  button {
+    border: 0;
+    border-radius: 13px;
+    padding: 12px 15px;
+    margin-top: 14px;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    background: var(--accent2);
+    color: white;
+  }
+  button.secondary {
+    background: #eef4ff;
+    color: #174a93;
+    border: 1px solid #c8dcff;
+  }
+  .buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result {
+    display: grid;
+    gap: 12px;
+  }
+  .big {
+    background: linear-gradient(135deg, #fff3ce, #ffffff);
+    border: 1px solid #f7d889;
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .big .num {
+    font-size: clamp(2rem, 6vw, 3.3rem);
+    font-weight: 900;
+    line-height: 1;
+    color: #a76500;
+  }
+  .smallgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 520px) {
+    .smallgrid { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 1fr; }
+  }
+  .box {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    background: #fbfdff;
+  }
+  .box b {
+    display: block;
+    margin-bottom: 4px;
+  }
+  .value {
+    font-size: 1.25rem;
+    font-weight: 850;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+  .formula {
+    margin-top: 16px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #172033;
+    color: #ecf2ff;
+    padding: 14px;
+    border-radius: 14px;
+    overflow-x: auto;
+    font-size: 0.92rem;
+  }
+  .sun {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin: 8px auto 18px;
+    background: radial-gradient(circle, #fff8b8 0%, #ffd45a 45%, #ff9f1c 100%);
+    box-shadow: 0 0 36px rgba(255, 180, 50, 0.75);
+  }
+  .note {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  details {
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fbfdff;
+    overflow: hidden;
+  }
+  summary {
+    cursor: pointer;
+    padding: 15px 16px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #eef4ff, #fff8ea);
+  }
+  .details-body {
+    padding: 16px;
+    line-height: 1.55;
+  }
+  .steps {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .step {
+    border-left: 5px solid var(--accent2);
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .mathline {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #172033;
+    color: #ecf2ff;
+    padding: 10px 12px;
+    border-radius: 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+
+  .vizgrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+  @media (max-width: 760px) { .vizgrid { grid-template-columns: 1fr; } }
+  .vizbox {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fbfdff;
+    padding: 12px;
+  }
+  .viztitle {
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  canvas {
+    width: 100%;
+    max-width: 420px;
+    display: block;
+    margin: 0 auto;
+  }
+
+  #realGlobe {
+    width: min(100%, 420px);
+    aspect-ratio: 1 / 1;
+    height: auto;
+    margin: 0 auto;
+    border-radius: 18px;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, #1b3358, #07111f 70%);
+    position: relative;
+    touch-action: none;
+    user-select: none;
+    overscroll-behavior: contain;
+  }
+  #realGlobe canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+    display: block;
+    touch-action: none;
+  }
+  #globeCanvas { display: none; aspect-ratio: 1 / 1; }
+  .globe-fallback #realGlobe { display: none; }
+  .globe-fallback #globeCanvas { display: block; }
+  #realMap {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 420 / 260;
+    min-height: 260px;
+    margin: 0 auto;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  #mapCanvas { display: none; }
+  .map-fallback #realMap { display: none; }
+  .map-fallback #mapCanvas { display: block; }
+  .legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .dotlegend {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: -1px;
+  }
+  .orange { background: #f6b73c; }
+  .blue { background: #2f80ed; }
+  .green { background: #1f9d55; }
+
+  .warning {
+    border: 1px solid #f4c7c3;
+    background: #fff4f2;
+    color: #8a1f11;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sluneční zenit a úhel dopadu</h1>
+  <p class="lead">
+    Zadej souřadnice místa. Aplikace spočítá aktuální výšku Slunce nad obzorem,
+    odklon paprsků od svislice, místo na Zemi, kde je Slunce právě v zenitu,
+    a vzdálenost mezi oběma místy.
+  </p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Vstup</h2>
+      <div class="row">
+        <div>
+          <label for="lat">Zeměpisná šířka</label>
+          <input id="lat" type="number" step="0.000001" value="49.1951">
+        </div>
+        <div>
+          <label for="lon">Zeměpisná délka</label>
+          <input id="lon" type="number" step="0.000001" value="16.6068">
+        </div>
+      </div>
+
+      <label for="time">Čas výpočtu</label>
+      <input id="time" type="datetime-local">
+
+      <div class="buttons">
+        <button onclick="calculate()">Spočítat</button>
+        <button class="secondary" onclick="useNow()">Použít aktuální čas</button>
+        <button class="secondary" onclick="useGps()">Použít moji polohu</button>
+      </div>
+
+      <p class="note">
+        Výchozí souřadnice jsou Brno. Výpočet je dostatečně přesný pro školní použití.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="sun"></div>
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+
+
+  <div class="card" style="margin-top:16px;">
+    <h2>🌍 Vizuální znázornění</h2>
+    <p class="muted">Glóbus a mapa ukazují zadané místo, aktuální bod zenitu a nejkratší spojnici po povrchu Země.</p>
+    <div class="vizgrid">
+      <div class="vizbox">
+        <div class="viztitle">Reálný 3D glóbus</div>
+        <div id="realGlobe" aria-label="Reálný 3D glóbus s vyznačeným místem a bodem zenitu"></div>
+        <canvas id="globeCanvas" width="420" height="420" aria-label="Záložní kreslený glóbus s vyznačeným místem a bodem zenitu"></canvas>
+        <div class="legend">
+          <span><span class="dotlegend blue"></span>zadané místo</span>
+          <span><span class="dotlegend orange"></span>bod zenitu</span>
+          <span><span class="dotlegend green"></span>spojnice</span>
+        </div>
+      </div>
+      <div class="vizbox">
+        <div class="viztitle">Reálná mapa světa</div>
+        <div id="realMap" aria-label="Reálná mapa světa s vyznačeným místem a bodem zenitu"></div>
+        <canvas id="mapCanvas" width="420" height="260" aria-label="Záložní mapa světa s vyznačeným místem a bodem zenitu"></canvas>
+        <p class="muted">3D glóbus i reálná mapa používají internet. Když se nepodaří načíst, aplikace použije jednoduchý záložní nákres.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="card" style="margin-top:16px;">
+    <h2>Eratosthenův odhad obvodu Země</h2>
+    <p class="muted">
+      Aplikace může využít stejnou myšlenku jako Eratosthenés: z úhlu mezi tvým místem a bodem, kde je Slunce v zenitu, odhadne celý obvod Země.
+    </p>
+    <div id="earthCalc"></div>
+
+    <details>
+      <summary>Rozbalovací návod: jak z toho spočítat obvod Země</summary>
+      <div class="details-body">
+        <p>V bodě zenitu dopadají sluneční paprsky kolmo, tedy pod úhlem <b>90°</b>. V tvém místě dopadají pod úhlem <b>α</b>. Rozdíl těchto úhlů odpovídá středovému úhlu mezi oběma místy na Zemi.</p>
+
+        <div class="steps">
+          <div class="step">
+            <b>1) Najdeme středový úhel</b>
+            <div class="mathline">β = 90° − α</div>
+            <div class="muted">α je úhel dopadu Slunce na vodorovnou zem. β je úhel mezi tvým místem a bodem zenitu při pohledu ze středu Země.</div>
+          </div>
+
+          <div class="step">
+            <b>2) Vezmeme vzdálenost k bodu zenitu</b>
+            <div class="mathline">β° odpovídá vzdálenosti d</div>
+            <div class="muted">Aplikace počítá vzdálenost d po povrchu Země v kilometrech.</div>
+          </div>
+
+          <div class="step">
+            <b>3) Sestavíme trojčlenku</b>
+            <div class="mathline">β° → d km<br>360° → O km</div>
+            <div class="muted">Celý obvod Země odpovídá 360°.</div>
+          </div>
+
+          <div class="step">
+            <b>4) Vyjádříme obvod Země</b>
+            <div class="mathline">O = 360° · d / β</div>
+            <div class="muted">Čím přesnější je měření úhlu a vzdálenosti, tím lepší vyjde odhad obvodu Země.</div>
+          </div>
+        </div>
+
+        <div class="note">
+          Pozor: tento školní odhad funguje nejlépe, když je Slunce nad obzorem a vzdálenost k zenitu není extrémně malá. Země navíc není dokonalá koule, proto se skutečný obvod liší podle směru: po poledníku asi 40 008 km, po rovníku asi 40 075 km.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>Co se počítá</h2>
+    <div class="smallgrid">
+      <div class="box">
+        <b>Úhel dopadu na vodorovnou zem</b>
+        <div class="muted">Je stejný jako výška Slunce nad obzorem. Když je Slunce nízko, úhel je malý. Když je nad hlavou, úhel je 90°.</div>
+      </div>
+      <div class="box">
+        <b>Odklon od svislice</b>
+        <div class="muted">Tomu se říká zenitový úhel. Platí: zenitový úhel = 90° − výška Slunce.</div>
+      </div>
+      <div class="box">
+        <b>Aktuální zenit</b>
+        <div class="muted">Bod na Zemi, kde by v daný okamžik Slunce svítilo přesně kolmo dolů.</div>
+      </div>
+      <div class="box">
+        <b>Vzdálenost</b>
+        <div class="muted">Počítá se vzdušnou čarou po povrchu Země pomocí haversinovy rovnice.</div>
+      </div>
+    </div>
+    <div class="formula">
+      výška Slunce = arcsin(sin φ · sin δ + cos φ · cos δ · cos H)<br>
+      zenitový úhel = 90° − výška Slunce<br>
+      šířka zenitu = deklinace Slunce δ<br>
+      délka zenitu = poledník, kde je právě sluneční poledne
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let globe3d = null;
+let realMap = null;
+let mapLayers = [];
+let lastGlobeData = null;
+function degToRad(d) { return d * Math.PI / 180; }
+function radToDeg(r) { return r * 180 / Math.PI; }
+function fixAngle(a) {
+  a = a % 360;
+  return a < 0 ? a + 360 : a;
+}
+function normalizeLon(lon) {
+  lon = ((lon + 180) % 360 + 360) % 360 - 180;
+  return lon;
+}
+function pad(n) { return String(n).padStart(2, "0"); }
+
+function useNow() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  document.getElementById("time").value =
+    local.getFullYear() + "-" + pad(local.getMonth()+1) + "-" + pad(local.getDate()) +
+    "T" + pad(local.getHours()) + ":" + pad(local.getMinutes());
+  calculate();
+}
+
+function useGps() {
+  if (!navigator.geolocation) {
+    alert("Prohlížeč nepodporuje GPS polohu.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    document.getElementById("lat").value = pos.coords.latitude.toFixed(6);
+    document.getElementById("lon").value = pos.coords.longitude.toFixed(6);
+    calculate();
+  }, () => {
+    alert("Polohu se nepodařilo získat. Zkus ji zadat ručně.");
+  });
+}
+
+function julianDay(date) {
+  return date.getTime() / 86400000 + 2440587.5;
+}
+
+function solarPosition(date, latDeg, lonDeg) {
+  const JD = julianDay(date);
+  const T = (JD - 2451545.0) / 36525;
+
+  const L0 = fixAngle(280.46646 + T * (36000.76983 + T * 0.0003032));
+  const M = fixAngle(357.52911 + T * (35999.05029 - 0.0001537 * T));
+  const e = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
+
+  const Mrad = degToRad(M);
+  const C = Math.sin(Mrad) * (1.914602 - T * (0.004817 + 0.000014 * T))
+          + Math.sin(2*Mrad) * (0.019993 - 0.000101 * T)
+          + Math.sin(3*Mrad) * 0.000289;
+
+  const trueLong = L0 + C;
+  const omega = 125.04 - 1934.136 * T;
+  const lambda = trueLong - 0.00569 - 0.00478 * Math.sin(degToRad(omega));
+
+  const epsilon0 = 23 + (26 + ((21.448 - T*(46.815 + T*(0.00059 - T*0.001813))))/60)/60;
+  const epsilon = epsilon0 + 0.00256 * Math.cos(degToRad(omega));
+
+  const decl = radToDeg(Math.asin(Math.sin(degToRad(epsilon)) * Math.sin(degToRad(lambda))));
+
+  const y = Math.tan(degToRad(epsilon) / 2);
+  const y2 = y * y;
+  const eqTime = 4 * radToDeg(
+    y2 * Math.sin(2 * degToRad(L0))
+    - 2 * e * Math.sin(Mrad)
+    + 4 * e * y2 * Math.sin(Mrad) * Math.cos(2 * degToRad(L0))
+    - 0.5 * y2 * y2 * Math.sin(4 * degToRad(L0))
+    - 1.25 * e * e * Math.sin(2 * Mrad)
+  );
+
+  const minutesUTC = date.getUTCHours() * 60 + date.getUTCMinutes() + date.getUTCSeconds()/60;
+  let trueSolarTime = (minutesUTC + eqTime + 4 * lonDeg) % 1440;
+  if (trueSolarTime < 0) trueSolarTime += 1440;
+
+  let hourAngle = trueSolarTime / 4 - 180;
+  if (hourAngle < -180) hourAngle += 360;
+
+  const lat = degToRad(latDeg);
+  const dec = degToRad(decl);
+  const H = degToRad(hourAngle);
+
+  const elevation = radToDeg(Math.asin(
+    Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H)
+  ));
+
+  const zenithAngle = 90 - elevation;
+
+  // Longitude where apparent solar time is 12:00:
+  // 720 = UTC minutes + eqTime + 4*lon
+  const subsolarLon = normalizeLon((720 - minutesUTC - eqTime) / 4);
+  const subsolarLat = decl;
+
+  return { elevation, zenithAngle, decl, hourAngle, eqTime, subsolarLat, subsolarLon };
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371.0088;
+  const p1 = degToRad(lat1), p2 = degToRad(lat2);
+  const dLat = degToRad(lat2 - lat1);
+  const dLon = degToRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function directionText(lat, lon) {
+  const ns = lat >= 0 ? "s. š." : "j. š.";
+  const ew = lon >= 0 ? "v. d." : "z. d.";
+  return Math.abs(lat).toFixed(4) + "° " + ns + ", " + Math.abs(lon).toFixed(4) + "° " + ew;
+}
+
+function updateEarthCircumference(elevation, zenithAngle, distance) {
+  const earthBox = document.getElementById("earthCalc");
+  if (!earthBox) return;
+
+  if (elevation <= 0) {
+    earthBox.innerHTML = `
+      <div class="warning">
+        Slunce je v zadaném místě pod obzorem, takže z aktuálního úhlu dopadu nejde dobře udělat Eratosthenův výpočet. Zkus čas, kdy je Slunce nad obzorem.
+      </div>
+    `;
+    return;
+  }
+
+  if (zenithAngle < 0.1) {
+    earthBox.innerHTML = `
+      <div class="warning">
+        Jsi téměř přímo v bodě zenitu. Úhel β je moc malý, takže by výpočet obvodu Země byl velmi citlivý na chybu měření.
+      </div>
+    `;
+    return;
+  }
+
+  const circumference = 360 * distance / zenithAngle;
+  earthBox.innerHTML = `
+    <div class="smallgrid">
+      <div class="box">
+        <b>Středový úhel β</b>
+        <div class="value">${zenithAngle.toFixed(1)}°</div>
+        <div class="muted">β = 90° − ${elevation.toFixed(1)}°</div>
+      </div>
+      <div class="box">
+        <b>Odhad obvodu Země</b>
+        <div class="value">${Math.round(circumference).toLocaleString("cs-CZ")} km</div>
+        <div class="muted">O = 360° · ${Math.round(distance).toLocaleString("cs-CZ")} km / ${zenithAngle.toFixed(1)}°</div>
+      </div>
+    </div>
+    <div class="mathline">
+      O = 360° · d / β = 360° · ${Math.round(distance).toLocaleString("cs-CZ")} km / ${zenithAngle.toFixed(1)}° ≐ ${Math.round(circumference).toLocaleString("cs-CZ")} km
+    </div>
+  `;
+}
+
+
+
+function latLonToVector3(lat, lon, radius = 1.01) {
+  const phi = degToRad(90 - lat);
+  const theta = degToRad(lon + 180);
+  return new THREE.Vector3(
+    -radius * Math.sin(phi) * Math.cos(theta),
+     radius * Math.cos(phi),
+     radius * Math.sin(phi) * Math.sin(theta)
+  );
+}
+
+function makeMarker(lat, lon, color, label) {
+  const group = new THREE.Group();
+  const pos = latLonToVector3(lat, lon, 1.035);
+  const geom = new THREE.SphereGeometry(0.035, 24, 24);
+  const mat = new THREE.MeshBasicMaterial({ color });
+  const dot = new THREE.Mesh(geom, mat);
+  dot.position.copy(pos);
+  group.add(dot);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  ctx.font = "bold 28px system-ui";
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.strokeStyle = "rgba(0,0,0,0.55)";
+  ctx.lineWidth = 6;
+  ctx.strokeText(label, 10, 42);
+  ctx.fillText(label, 10, 42);
+  const tex = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sprite.position.copy(latLonToVector3(lat, lon, 1.18));
+  sprite.scale.set(0.42, 0.105, 1);
+  group.add(sprite);
+  return group;
+}
+
+function makeGreatCircleLine(lat1, lon1, lat2, lon2) {
+  const pts = [];
+  for (let i = 0; i <= 160; i++) {
+    const p = interpolateGreatCircle(lat1, lon1, lat2, lon2, i / 160);
+    pts.push(latLonToVector3(p.lat, p.lon, 1.025));
+  }
+  const geom = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0x1f9d55, linewidth: 3 });
+  return new THREE.Line(geom, mat);
+}
+
+function initRealGlobe() {
+  const host = document.getElementById("realGlobe");
+  if (!host || !window.THREE) return null;
+  if (globe3d) return globe3d;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0, 3.2);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  host.innerHTML = "";
+  host.appendChild(renderer.domElement);
+
+  const root = new THREE.Group();
+  scene.add(root);
+  const light = new THREE.DirectionalLight(0xffffff, 2.1);
+  light.position.set(3, 2, 4);
+  scene.add(light);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+
+  const earthGeom = new THREE.SphereGeometry(1, 96, 96);
+  const fallbackMat = new THREE.MeshPhongMaterial({ color: 0x3b82c4, shininess: 12 });
+  const earth = new THREE.Mesh(earthGeom, fallbackMat);
+  root.add(earth);
+
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    "https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg",
+    tex => { earth.material = new THREE.MeshPhongMaterial({ map: tex, shininess: 8 }); },
+    undefined,
+    () => document.querySelector('.vizbox')?.classList.add('globe-fallback')
+  );
+
+  const stars = new THREE.Mesh(
+    new THREE.SphereGeometry(12, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0x07111f, side: THREE.BackSide })
+  );
+  scene.add(stars);
+
+  let overlay = new THREE.Group();
+  root.add(overlay);
+
+  function resize() {
+    const rect = host.getBoundingClientRect();
+    const size = Math.max(260, Math.min(520, rect.width));
+    renderer.setSize(size, size, false);
+    camera.aspect = 1;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  let dragging = false, lastX = 0, lastY = 0;
+  let targetRotX = root.rotation.x;
+  let targetRotY = root.rotation.y;
+  function stopPageGesture(e) { e.preventDefault(); e.stopPropagation(); }
+  host.addEventListener("pointerdown", e => {
+    stopPageGesture(e);
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    host.setPointerCapture?.(e.pointerId);
+  }, { passive: false });
+  host.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    stopPageGesture(e);
+    targetRotY += (e.clientX - lastX) * 0.0065;
+    targetRotX += (e.clientY - lastY) * 0.0065;
+    targetRotX = Math.max(-1.25, Math.min(1.25, targetRotX));
+    lastX = e.clientX;
+    lastY = e.clientY;
+  }, { passive: false });
+  function endDrag(e) {
+    dragging = false;
+    try { host.releasePointerCapture?.(e.pointerId); } catch (_) {}
+  }
+  host.addEventListener("pointerup", endDrag);
+  host.addEventListener("pointercancel", endDrag);
+  host.addEventListener("lostpointercapture", () => dragging = false);
+  host.addEventListener("wheel", e => e.preventDefault(), { passive: false });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (!dragging) targetRotY += 0.0008;
+    root.rotation.x += (targetRotX - root.rotation.x) * 0.14;
+    root.rotation.y += (targetRotY - root.rotation.y) * 0.14;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  globe3d = {
+    scene,
+    root,
+    overlay,
+    resize,
+    setViewQuaternion(q) {
+      root.quaternion.copy(q);
+      root.rotation.x = Math.max(-1.25, Math.min(1.25, root.rotation.x));
+      targetRotX = root.rotation.x;
+      targetRotY = root.rotation.y;
+    },
+    setOverlay(group) { root.remove(overlay); overlay = group; root.add(overlay); this.overlay = overlay; }
+  };
+  return globe3d;
+}
+
+function drawRealGlobe(userLat, userLon, zenLat, zenLon) {
+  const g = initRealGlobe();
+  if (!g || !window.THREE) return false;
+  const overlay = new THREE.Group();
+  overlay.add(makeGreatCircleLine(userLat, userLon, zenLat, zenLon));
+  overlay.add(makeMarker(userLat, userLon, 0x2f80ed, "Místo"));
+  overlay.add(makeMarker(zenLat, zenLon, 0xf6b73c, "Zenit"));
+
+  const midLat = (userLat + zenLat) / 2;
+  const dLon = normalizeLon(zenLon - userLon);
+  const midLon = normalizeLon(userLon + dLon / 2);
+  const target = latLonToVector3(midLat, midLon, 1);
+  const q = new THREE.Quaternion().setFromUnitVectors(target.clone().normalize(), new THREE.Vector3(0, 0, 1));
+  if (typeof g.setViewQuaternion === "function") g.setViewQuaternion(q);
+  else g.root.quaternion.copy(q);
+  g.setOverlay(overlay);
+  return true;
+}
+
+function projectOrthographic(lat, lon, centerLat, centerLon, radius, cx, cy) {
+  const phi = degToRad(lat);
+  const lambda = degToRad(lon);
+  const phi0 = degToRad(centerLat);
+  const lambda0 = degToRad(centerLon);
+  const cosc = Math.sin(phi0)*Math.sin(phi) + Math.cos(phi0)*Math.cos(phi)*Math.cos(lambda-lambda0);
+  const x = radius * Math.cos(phi) * Math.sin(lambda-lambda0);
+  const y = -radius * (Math.cos(phi0)*Math.sin(phi) - Math.sin(phi0)*Math.cos(phi)*Math.cos(lambda-lambda0));
+  return { x: cx + x, y: cy + y, visible: cosc >= -0.02 };
+}
+
+function drawGlobe(userLat, userLon, zenLat, zenLon) {
+  lastGlobeData = {userLat, userLon, zenLat, zenLon};
+  if (drawRealGlobe(userLat, userLon, zenLat, zenLon)) {
+    const box = document.querySelector(".vizbox");
+    if (box) box.classList.remove("globe-fallback");
+    return;
+  }
+  const box = document.querySelector(".vizbox");
+  if (box) box.classList.add("globe-fallback");
+  const canvas = document.getElementById("globeCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  const cx = w/2, cy = h/2, r = Math.min(w,h)*0.40;
+  const centerLat = (userLat + zenLat) / 2;
+  let dLon = normalizeLon(zenLon - userLon);
+  const centerLon = normalizeLon(userLon + dLon/2);
+
+  const grad = ctx.createRadialGradient(cx-r*0.35, cy-r*0.45, r*0.1, cx, cy, r);
+  grad.addColorStop(0, "#e9f7ff");
+  grad.addColorStop(1, "#8ec5ff");
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = "#406b9a"; ctx.lineWidth = 2; ctx.stroke();
+
+  ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.clip();
+  ctx.strokeStyle = "rgba(23,32,51,0.18)"; ctx.lineWidth = 1;
+  for (let lat=-60; lat<=60; lat+=30) {
+    ctx.beginPath();
+    let started=false;
+    for (let lon=-180; lon<=180; lon+=4) {
+      const p = projectOrthographic(lat, lon, centerLat, centerLon, r, cx, cy);
+      if (p.visible) { if (!started) { ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y); }
+    }
+    ctx.stroke();
+  }
+  for (let lon=-180; lon<180; lon+=30) {
+    ctx.beginPath(); let started=false;
+    for (let lat=-90; lat<=90; lat+=3) {
+      const p = projectOrthographic(lat, lon, centerLat, centerLon, r, cx, cy);
+      if (p.visible) { if (!started) { ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y); }
+    }
+    ctx.stroke();
+  }
+
+  // Great-circle interpolation line
+  ctx.strokeStyle = "#1f9d55"; ctx.lineWidth = 4; ctx.beginPath();
+  let started=false;
+  for (let i=0;i<=80;i++) {
+    const t=i/80;
+    const pnt = interpolateGreatCircle(userLat,userLon,zenLat,zenLon,t);
+    const p=projectOrthographic(pnt.lat,pnt.lon,centerLat,centerLon,r,cx,cy);
+    if (p.visible) { if (!started) { ctx.moveTo(p.x,p.y); started=true; } else ctx.lineTo(p.x,p.y); }
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  const a=projectOrthographic(userLat,userLon,centerLat,centerLon,r,cx,cy);
+  const b=projectOrthographic(zenLat,zenLon,centerLat,centerLon,r,cx,cy);
+  drawPoint(ctx,a.x,a.y,"#2f80ed","Místo");
+  drawPoint(ctx,b.x,b.y,"#f6b73c","Zenit");
+}
+
+function drawPoint(ctx,x,y,color,label) {
+  ctx.fillStyle=color; ctx.strokeStyle="white"; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(x,y,8,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle="#172033"; ctx.font="bold 14px system-ui"; ctx.fillText(label,x+12,y-10);
+}
+
+function interpolateGreatCircle(lat1, lon1, lat2, lon2, t) {
+  const φ1=degToRad(lat1), λ1=degToRad(lon1), φ2=degToRad(lat2), λ2=degToRad(lon2);
+  const x1=Math.cos(φ1)*Math.cos(λ1), y1=Math.cos(φ1)*Math.sin(λ1), z1=Math.sin(φ1);
+  const x2=Math.cos(φ2)*Math.cos(λ2), y2=Math.cos(φ2)*Math.sin(λ2), z2=Math.sin(φ2);
+  let dot=x1*x2+y1*y2+z1*z2; dot=Math.max(-1,Math.min(1,dot));
+  const omega=Math.acos(dot);
+  if (omega < 1e-9) return {lat:lat1, lon:lon1};
+  const so=Math.sin(omega);
+  const a=Math.sin((1-t)*omega)/so, b=Math.sin(t*omega)/so;
+  const x=a*x1+b*x2, y=a*y1+b*y2, z=a*z1+b*z2;
+  return {lat:radToDeg(Math.atan2(z,Math.sqrt(x*x+y*y))), lon:normalizeLon(radToDeg(Math.atan2(y,x)))};
+}
+
+
+function initRealMap() {
+  const host = document.getElementById("realMap");
+  if (!host || !window.L) return null;
+  if (realMap) return realMap;
+  realMap = L.map(host, {
+    worldCopyJump: true,
+    zoomControl: true,
+    attributionControl: true,
+    scrollWheelZoom: false,
+    tap: true
+  }).setView([20, 0], 2);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 7,
+    attribution: "© OpenStreetMap"
+  }).addTo(realMap);
+  return realMap;
+}
+
+function drawRealMap(userLat, userLon, zenLat, zenLon) {
+  const map = initRealMap();
+  const box = document.querySelector(".vizgrid .vizbox:nth-child(2)");
+  if (!map || !window.L) {
+    box?.classList.add("map-fallback");
+    return false;
+  }
+  box?.classList.remove("map-fallback");
+  mapLayers.forEach(layer => map.removeLayer(layer));
+  mapLayers = [];
+
+  const placeIcon = L.divIcon({
+    className: "",
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#2f80ed;border:3px solid white;box-shadow:0 1px 6px #0008"></div>',
+    iconSize: [18,18], iconAnchor: [9,9]
+  });
+  const zenIcon = L.divIcon({
+    className: "",
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#f6b73c;border:3px solid white;box-shadow:0 1px 6px #0008"></div>',
+    iconSize: [18,18], iconAnchor: [9,9]
+  });
+
+  const path = [];
+  for (let i = 0; i <= 160; i++) {
+    const p = interpolateGreatCircle(userLat, userLon, zenLat, zenLon, i / 160);
+    path.push([p.lat, p.lon]);
+  }
+  mapLayers.push(L.polyline(path, { color: "#1f9d55", weight: 4, opacity: 0.9 }).addTo(map));
+  mapLayers.push(L.marker([userLat, userLon], { icon: placeIcon }).bindPopup("Zadané místo").addTo(map));
+  mapLayers.push(L.marker([zenLat, zenLon], { icon: zenIcon }).bindPopup("Bod zenitu").addTo(map));
+  mapLayers.push(L.circleMarker([userLat, userLon], { radius: 0, color: "#2f80ed" }).bindTooltip("Místo", { permanent: true, direction: "right", offset: [12, 0] }).addTo(map));
+  mapLayers.push(L.circleMarker([zenLat, zenLon], { radius: 0, color: "#f6b73c" }).bindTooltip("Zenit", { permanent: true, direction: "right", offset: [12, 0] }).addTo(map));
+
+  const bounds = L.latLngBounds([[userLat, userLon], [zenLat, zenLon]]).pad(0.45);
+  setTimeout(() => {
+    map.invalidateSize();
+    map.fitBounds(bounds, { maxZoom: 4, animate: true });
+  }, 60);
+  return true;
+}
+
+function drawMap(userLat,userLon,zenLat,zenLon) {
+  if (drawRealMap(userLat, userLon, zenLat, zenLon)) return;
+  const canvas=document.getElementById("mapCanvas");
+  if (!canvas) return;
+  const ctx=canvas.getContext("2d");
+  const w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="#e9f7ff"; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle="rgba(23,32,51,0.18)"; ctx.lineWidth=1;
+  for(let lon=-180;lon<=180;lon+=30){ const x=(lon+180)/360*w; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for(let lat=-60;lat<=60;lat+=30){ const y=(90-lat)/180*h; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.fillStyle="rgba(31,157,85,0.14)";
+  // rough land shapes, intentionally schematic
+  const blobs=[[-100,45,55,32],[-60,-15,28,45],[20,5,48,58],[80,45,75,38],[135,-25,28,20]];
+  for(const [lon,lat,rx,ry] of blobs){ const x=(lon+180)/360*w, y=(90-lat)/180*h; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2); ctx.fill(); }
+
+  ctx.strokeStyle="#1f9d55"; ctx.lineWidth=3; ctx.beginPath();
+  for(let i=0;i<=100;i++){
+    const p=interpolateGreatCircle(userLat,userLon,zenLat,zenLon,i/100);
+    const x=(p.lon+180)/360*w, y=(90-p.lat)/180*h;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  function mp(lat,lon,color,label){ const x=(lon+180)/360*w, y=(90-lat)/180*h; drawPoint(ctx,x,y,color,label); }
+  mp(userLat,userLon,"#2f80ed","Místo");
+  mp(zenLat,zenLon,"#f6b73c","Zenit");
+}
+
+function calculate() {
+  const lat = Number(document.getElementById("lat").value);
+  const lon = Number(document.getElementById("lon").value);
+  const timeValue = document.getElementById("time").value;
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    alert("Zadej platnou zeměpisnou šířku od -90 do 90 a délku od -180 do 180.");
+    return;
+  }
+
+  const date = timeValue ? new Date(timeValue) : new Date();
+  const s = solarPosition(date, lat, lon);
+  const distance = haversineKm(lat, lon, s.subsolarLat, s.subsolarLon);
+  updateEarthCircumference(s.elevation, s.zenithAngle, distance);
+  drawGlobe(lat, lon, s.subsolarLat, s.subsolarLon);
+  drawMap(lat, lon, s.subsolarLat, s.subsolarLon);
+
+  const nightNote = s.elevation < 0
+    ? "<p class='muted'><b>Poznámka:</b> Slunce je v tomto místě právě pod obzorem. Paprsky tedy na zem v tomto místě přímo nedopadají.</p>"
+    : "";
+
+  document.getElementById("result").innerHTML = `
+    <div class="big">
+      <div class="muted">Úhel dopadu na vodorovnou zem</div>
+      <div class="num">${s.elevation.toFixed(1)}°</div>
+      <div class="muted">= výška Slunce nad obzorem</div>
+    </div>
+    <div class="smallgrid">
+      <div class="box">
+        <b>Odklon od svislice</b>
+        <div class="value">${s.zenithAngle.toFixed(1)}°</div>
+      </div>
+      <div class="box">
+        <b>Vzdálenost k zenitu</b>
+        <div class="value">${Math.round(distance).toLocaleString("cs-CZ")} km</div>
+      </div>
+      <div class="box">
+        <b>Aktuální zenit</b>
+        <div class="value">${directionText(s.subsolarLat, s.subsolarLon)}</div>
+      </div>
+      <div class="box">
+        <b>Čas výpočtu</b>
+        <div class="value">${date.toLocaleString("cs-CZ")}</div>
+      </div>
+    </div>
+    ${nightNote}
+  `;
+}
+
+useNow();
+window.addEventListener("load", () => { if (lastGlobeData) drawGlobe(lastGlobeData.userLat, lastGlobeData.userLon, lastGlobeData.zenLat, lastGlobeData.zenLon); });
+</script>
+</body>
+</html>

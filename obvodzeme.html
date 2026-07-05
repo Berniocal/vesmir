@@ -332,7 +332,7 @@
 
   <div class="card" style="margin-top:16px;">
     <h2>🌍 Vizuální znázornění</h2>
-    <p class="muted">Glóbus a mapa ukazují zadané místo, aktuální bod zenitu a nejkratší spojnici po povrchu Země.</p>
+    <p class="muted">Glóbus a mapa ukazují zadané místo, aktuální bod zenitu a nejkratší spojnici po povrchu Země. Polohu můžeš změnit i kliknutím přímo do mapy.</p>
     <div class="vizgrid">
       <div class="vizbox">
         <div class="viztitle">Reálný 3D glóbus</div>
@@ -348,7 +348,7 @@
         <div class="viztitle">Reálná mapa světa</div>
         <div id="realMap" aria-label="Reálná mapa světa s vyznačeným místem a bodem zenitu"></div>
         <canvas id="mapCanvas" width="420" height="260" aria-label="Záložní mapa světa s vyznačeným místem a bodem zenitu"></canvas>
-        <p class="muted">3D glóbus i reálná mapa používají internet. Když se nepodaří načíst, aplikace použije jednoduchý záložní nákres.</p>
+        <p class="muted">Kliknutím do mapy nastavíš nové místo. Spojnice je rozdělená na části, aby se při průchodu přes okraj mapy nekreslila přes celý svět.</p>
       </div>
     </div>
   </div>
@@ -857,6 +857,30 @@ function interpolateGreatCircle(lat1, lon1, lat2, lon2, t) {
 }
 
 
+function splitDatelineSegments(path) {
+  const segments = [];
+  let current = [];
+  for (let i = 0; i < path.length; i++) {
+    const pt = path[i];
+    if (current.length) {
+      const prev = current[current.length - 1];
+      if (Math.abs(pt[1] - prev[1]) > 180) {
+        if (current.length > 1) segments.push(current);
+        current = [];
+      }
+    }
+    current.push(pt);
+  }
+  if (current.length > 1) segments.push(current);
+  return segments;
+}
+
+function setPlaceFromMapClick(lat, lon) {
+  document.getElementById("lat").value = Math.max(-90, Math.min(90, lat)).toFixed(6);
+  document.getElementById("lon").value = normalizeLon(lon).toFixed(6);
+  calculate();
+}
+
 function initRealMap() {
   const host = document.getElementById("realMap");
   if (!host || !window.L) return null;
@@ -872,6 +896,9 @@ function initRealMap() {
     maxZoom: 7,
     attribution: "© OpenStreetMap"
   }).addTo(realMap);
+  realMap.on("click", e => {
+    setPlaceFromMapClick(e.latlng.lat, e.latlng.lng);
+  });
   return realMap;
 }
 
@@ -898,11 +925,13 @@ function drawRealMap(userLat, userLon, zenLat, zenLon) {
   });
 
   const path = [];
-  for (let i = 0; i <= 160; i++) {
-    const p = interpolateGreatCircle(userLat, userLon, zenLat, zenLon, i / 160);
+  for (let i = 0; i <= 220; i++) {
+    const p = interpolateGreatCircle(userLat, userLon, zenLat, zenLon, i / 220);
     path.push([p.lat, p.lon]);
   }
-  mapLayers.push(L.polyline(path, { color: "#1f9d55", weight: 4, opacity: 0.9 }).addTo(map));
+  splitDatelineSegments(path).forEach(seg => {
+    mapLayers.push(L.polyline(seg, { color: "#1f9d55", weight: 4, opacity: 0.9 }).addTo(map));
+  });
   mapLayers.push(L.marker([userLat, userLon], { icon: placeIcon }).bindPopup("Zadané místo").addTo(map));
   mapLayers.push(L.marker([zenLat, zenLon], { icon: zenIcon }).bindPopup("Bod zenitu").addTo(map));
   mapLayers.push(L.circleMarker([userLat, userLon], { radius: 0, color: "#2f80ed" }).bindTooltip("Místo", { permanent: true, direction: "right", offset: [12, 0] }).addTo(map));
@@ -932,11 +961,20 @@ function drawMap(userLat,userLon,zenLat,zenLon) {
   const blobs=[[-100,45,55,32],[-60,-15,28,45],[20,5,48,58],[80,45,75,38],[135,-25,28,20]];
   for(const [lon,lat,rx,ry] of blobs){ const x=(lon+180)/360*w, y=(90-lat)/180*h; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2); ctx.fill(); }
 
-  ctx.strokeStyle="#1f9d55"; ctx.lineWidth=3; ctx.beginPath();
-  for(let i=0;i<=100;i++){
-    const p=interpolateGreatCircle(userLat,userLon,zenLat,zenLon,i/100);
+  ctx.strokeStyle="#1f9d55"; ctx.lineWidth=3;
+  let prevLon = null;
+  let drawing = false;
+  ctx.beginPath();
+  for(let i=0;i<=160;i++){
+    const p=interpolateGreatCircle(userLat,userLon,zenLat,zenLon,i/160);
     const x=(p.lon+180)/360*w, y=(90-p.lat)/180*h;
-    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    if(prevLon !== null && Math.abs(p.lon - prevLon) > 180) {
+      ctx.stroke();
+      ctx.beginPath();
+      drawing = false;
+    }
+    if(!drawing) { ctx.moveTo(x,y); drawing=true; } else ctx.lineTo(x,y);
+    prevLon = p.lon;
   }
   ctx.stroke();
   function mp(lat,lon,color,label){ const x=(lon+180)/360*w, y=(90-lat)/180*h; drawPoint(ctx,x,y,color,label); }
